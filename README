@@ -1,0 +1,17 @@
+suggested steps:
+
+DONE! - by Thursday - 1. Set up the source files and the Makefile
+
+by Friday - 2. Write code for OSS to parse options and recieve command parameters
+
+by Saturday - 3. Implement OSS initialization of shared memory and worker being able to take in arguments
+worker should just be able to read the shared memory clock.
+
+by Sunday - 4. Implement OSS to fork() and exec() off one worker and have them comunicate back and forth
+with the message que, make sure the log works.
+
+by Monday - 5. Get OSS to fork() off workers up till the -n parameter and do their task.
+
+by Tuesday - 6. Implement the simultaneous restriction, as well as the process table and store data in it.
+
+by Wednesday - 7. Testing and code cleanup, add readme w/ usage statemnt and git history.
