@@ -2,9 +2,9 @@ suggested steps:
 
 DONE! - by Thursday - 1. Set up the source files and the Makefile
 
-by Friday - 2. Write code for OSS to parse options and recieve command parameters
+DONE! - by Friday - 2. Write code for OSS to parse options and recieve command parameters
 
-by Saturday - 3. Implement OSS initialization of shared memory and worker being able to take in arguments
+DONE! - by Saturday - 3. Implement OSS initialization of shared memory and worker being able to take in arguments
 worker should just be able to read the shared memory clock.
 
 by Sunday - 4. Implement OSS to fork() and exec() off one worker and have them comunicate back and forth

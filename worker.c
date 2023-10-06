@@ -12,7 +12,7 @@ exit(0);
 }
 int main(int argc, char** argv){
 	signal(SIGALRM, signal_handler);
-	alarm(60);
+	alarm(3);
 	if(argc>2){
 		int shmidc = shmget(SHMKEY, BUFF_SZ, 0777);
 		if (shmidc == -1){

@@ -8,14 +8,11 @@
 #include <sys/shm.h>
 #include <string.h>
 #include <time.h>
-// Almost!  pass random numbers to the worker
-//   process table should indicate if each slot is empty or not (initialize all spots as empty,, based on total number of processes maybe)
-//   oss should update the process table after each fork
-//   output process table every half "second" (pdf has pseudocode)
+
 int sysClockNano = 0;
 int sysClockSec = 0;
 void incrementClock(){
-	sysClockNano = sysClockNano + 2000; // professor suggests around 10mil incrementation at a time, we will see
+	sysClockNano = sysClockNano + 100000000;//2000; // professor suggests around 10mil incrementation at a time, we will see
 	if (sysClockNano > 1000000000){
 		sysClockSec++;
 		sysClockNano = sysClockNano - 1000000000;
@@ -51,6 +48,7 @@ int main(int argc, char** argv){
 	int workerLimit = 0;
 	int timeLimit = 0;
 	int prevSec = 0;
+	char *logFile= "log_file.txt";
 	while((option = getopt(argc, argv, "hn:s:t:")) != -1){
 		switch(option){
 			case 'h':
@@ -65,6 +63,10 @@ int main(int argc, char** argv){
 			case 't':
 				timeLimit = atoi(optarg);
 				break;
+			case 'f':
+				logFile = optarg;
+				// maybe make a condition for output file name
+				break;
 			case '?':
 				if ((optopt = 'c')){
 					printf("Option %c requires an argument\n", optopt);
@@ -77,6 +79,10 @@ int main(int argc, char** argv){
 				return EXIT_SUCCESS;
 		}
 	}
+//open file to print to :
+	
+
+
 	//initializing shared memor
 	int shmid = shmget ( SHMKEY, BUFF_SZ, 0777 | IPC_CREAT );
 	if ( shmid == -1 ){
@@ -85,35 +91,37 @@ int main(int argc, char** argv){
 	}
 	char * paddr = ( char * )( shmat ( shmid, 0, 0 ) );
 	int * shmTime = ( int * )( paddr );
-	shmTime[0]=0;
-	shmTime[1]=0;
-	//that is it for starting shared memory
+	shmTime[0]=123;
+	shmTime[1]=123;
  	shmdt(shmTime);
-	printf("Number of workers Selected:%d\nNumber of Workers at a time:%d\nNumber of loops for each Worker:%d\n", numWorkers, workerLimit, timeLimit);
-	int i=0,j=0;
+
+//	printf("%s",logFile);
+
+	printf("Number of workers Selected: %d\nNumber of Workers at a time: %d\nNumber of loops for each Worker: %d\nOutput file: %s\n", numWorkers, workerLimit, timeLimit,logFile);
+//	int i=0,j=0;
 	//fork calls:
 	pid_t childPid;
 	int statPid;
 //verify making this a while loop will work 
-//	while (i<numWorkers){
+	//	while (i<numWorkers){
 
-	for(i=0;i<numWorkers;i++){
+//	for(i=0;i<numWorkers;i++){
 
 
-printf("\nwait if ahead:\n");
-		if(i >= workerLimit) {
-// this wait breaks my simultanous limit, need to consider logic around this problem
-//printf("\npre worker limit wait\n");
-			statPid = waitpid(-1, &status, WNOHANG);
+//		if(i >= workerLimit) {
+	//printf("\npre worker limit wait\n");
+//			statPid = waitpid(-1, &status, WNOHANG);
 //			wait(NULL);
 //printf("\npost worker limit wait\n");
-		}
+//		}
+
 		childPid = fork();
 		if (childPid == -1){
 			printf("Fork Process Failed!\n");
 			return EXIT_FAILURE;
 		}
-	//child side of the fork if, why does random seem to keep giving the same number for seconds??
+
+	//child side of the fork if
 		if (childPid == 0) {
 			int timeSec = randSeconds(timeLimit);
 			int timeNano = randNano();
@@ -128,10 +136,16 @@ printf("\nwait if ahead:\n");
 //			processTable[i].startNano = sysClockNano;
 			execvp("./worker", args);
 		}
-	}//  for loop
+//	}//  for loop
 	//parent side of fork if
 	if(childPid != 0) {
 	int statusPid;
+	//open output file
+	FILE *outputFile = fopen(logFile, "w");
+	if (outputFile==NULL){
+	printf("Error opening output file!\nTerminating program\n");
+	return EXIT_FAILURE;
+	}
 	//parent shared memory
 		int shmidp = shmget(SHMKEY, BUFF_SZ, 0777);
 		if (shmidp == -1){
@@ -140,48 +154,27 @@ printf("\nwait if ahead:\n");
 		}
 		int * ppint = (int*)(shmat(shmidp,0,0));
 		int nanoFlag = 0;
-			while (j < numWorkers) {
-				statusPid = waitpid(-1, &status, WNOHANG);
-				if (statusPid != 0 ){
-					printf("A Child Process completed successfully!\n");
-					j++;
-//update pcb here regarding terminated child
-
-//					printf("Shared memory clock contains the following: Seconds: %d and Nanoseconds: %d\n",ppint[0],ppint[1]);
-				}
+//			while (j < numWorkers) {
 				incrementClock();
+
+//				statusPid = waitpid(-1, &status, WNOHANG);
+//				if (statusPid != 0 ){
+				wait(&statusPid);
+					printf("A Child Process completed successfully!\n");
+//					j++;
+
+					fprintf(outputFile,"Shared memory clock contains the following: Seconds: %d and Nanoseconds: %d\n",ppint[0],ppint[1]);
+					printf("Shared memory clock contains the following: Seconds: %d and Nanoseconds: %d\n",ppint[0],ppint[1]);
+//				}
 				ppint[0] = sysClockSec;
 				ppint[1] = sysClockNano;
-		
-				if (ppint[1] > 500000000 && nanoFlag == 0){
+
+//				if (ppint[1] > 500000000 && nanoFlag == 0){
 					//print and set nano flag
-					nanoFlag = 1;
-	//pcb table prints here:
-	printf("OSS PID:%d SysClockS: %d SysclockNano: %d\n",getpid(), ppint[0], ppint[1]);
-	printf("Process Table:\n");
-	printf("Entry Occupied PID   StartS StartN\n");
-	int k;
-	for (k=0;k<20;k++){
-		printf("  %d     %d      %d     %d      %d\n", k, processTable[k].occupied, processTable[k].pid, processTable[k].startSeconds, processTable[k].startNano);
-	}
-				}else if(ppint[0]>prevSec){
-					nanoFlag = 0;
-					prevSec = ppint[0];
-	//pcb table prints here
-	printf("OSS PID:%d SysClockS: %d SysclockNano: %d\n",getpid(), ppint[0], ppint[1]);
-	printf("Process Table:\n");
-	printf("Entry Occupied PID   StartS StartN\n");
-	int k;
-	for (k=0;k<20;k++){
-		printf("  %d     %d      %d     %d      %d\n", k, processTable[k].occupied, processTable[k].pid, processTable[k].startSeconds, processTable[k].startNano);
-	}
-				}
-			}
-//end of while above
-//	i++;
-//	}
+//					nanoFlag = 1;
+//			}
 	shmdt(ppint);
 	shmctl(shmid, IPC_RMID, NULL);
 printf("shared memory shutdown successful\n");
-	}
+	}//end of parent side of fork if
 }
