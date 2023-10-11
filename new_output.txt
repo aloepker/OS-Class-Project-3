@@ -1,2 +1,1 @@
-Child's PID: 2613549
 Shared memory clock contains the following: Seconds: 123 and Nanoseconds: 123

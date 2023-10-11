@@ -26,7 +26,7 @@ exit(0);
 
 int main(int argc, char** argv){
 	signal(SIGALRM, signal_handler);
-	alarm(7);
+	alarm(4);
 
 	msgbuffer buf;
 	buf.mtype = 1;
