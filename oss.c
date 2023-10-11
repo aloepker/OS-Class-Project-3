@@ -58,7 +58,7 @@ int main(int argc, char** argv){
 	int timeLimit = 0;
 	int prevSec = 0;
 	char *logFile= "log_file.txt";
-	while((option = getopt(argc, argv, "hn:s:t:")) != -1){
+	while((option = getopt(argc, argv, "hn:s:t:f:")) != -1){
 		switch(option){
 			case 'h':
 				help();
@@ -87,8 +87,8 @@ int main(int argc, char** argv){
 				help();
 				return EXIT_SUCCESS;
 		}
-	}	
-	//initializing shared memor
+	}
+	//initializing shared memory
 	int shmid = shmget ( SHMKEY, BUFF_SZ, 0777 | IPC_CREAT );
 	if ( shmid == -1 ){
 		perror("Shared Memory Creation Error!!!\n");
@@ -99,7 +99,7 @@ int main(int argc, char** argv){
 	shmTime[0]=123;
 	shmTime[1]=123;
  	shmdt(shmTime);
-//message que initial implementation:
+	//message que initial implementation:
 	msgbuffer buf0, buf1;
 	int msqid;
 	key_t key;
@@ -114,11 +114,9 @@ int main(int argc, char** argv){
 		perror("msgget in parent error");
 		exit(1);
 	}
-	printf("Message queue has been set up successfully!\n");
+	printf("OSS: Message queue has been set up successfully!\n");
 
-		
-
-	printf("Number of workers Selected: %d\nNumber of Workers at a time: %d\nNumber of loops for each Worker: %d\nOutput file: %s\n", numWorkers, workerLimit, timeLimit,logFile);
+	printf("OSS: Number of workers Selected: %d\nNumber of Workers at a time: %d\nNumber of loops for each Worker: %d\nOutput file: %s\n", numWorkers, workerLimit, timeLimit,logFile);
 //	int i=0,j=0;
 	//fork calls:
 	pid_t childPid;
@@ -191,7 +189,19 @@ int main(int argc, char** argv){
 		
 		if (msgsnd(msqid, &buf1, sizeof(msgbuffer)-sizeof(long), 0) == -1) {
 			perror("msgsnd to child failed");
+			exit(1);
 		}
+		
+		msgbuffer rcvbuf;
+//		int messageArrived = 0;
+//		while (messageArrived == 0){
+		if (msgrcv(msqid, &rcvbuf, sizeof(msgbuffer), getpid(), 0) == -1){
+			perror("failed to recieve message in parent\n");
+			exit(1);
+		}
+//		}
+		// if it is a blocking wait, then I will be able to print the childs message as it:
+		printf("OSS: Parent %d recieved message from: %d\n", getpid(), rcvbuf.intData);
 
 
 
@@ -201,12 +211,13 @@ int main(int argc, char** argv){
 
 //				statusPid = waitpid(-1, &status, WNOHANG);
 //				if (statusPid != 0 ){
+//blocking wait currently implemented!
 				wait(&statusPid);
-					printf("A Child Process completed successfully!\n");
+					printf("OSS: A Child Process completed successfully!\n");
 //					j++;
 
 					fprintf(outputFile,"Shared memory clock contains the following: Seconds: %d and Nanoseconds: %d\n",ppint[0],ppint[1]);
-					printf("Shared memory clock contains the following: Seconds: %d and Nanoseconds: %d\n",ppint[0],ppint[1]);
+					printf("OSS: Shared memory clock contains the following: Seconds: %d and Nanoseconds: %d\n",ppint[0],ppint[1]);
 //				}
 				ppint[0] = sysClockSec;
 				ppint[1] = sysClockNano;
@@ -217,7 +228,7 @@ int main(int argc, char** argv){
 //			}
 		shmdt(ppint);
 		shmctl(shmid, IPC_RMID, NULL);
-		printf("shared memory shutdown successful\n");
+		printf("OSS: shared memory shutdown successful\n");
 		fclose(outputFile);
 //also clear message ques:
 		if (msgctl(msqid, IPC_RMID, NULL) == -1){

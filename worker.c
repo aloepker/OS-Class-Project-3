@@ -18,7 +18,7 @@ typedef struct msgbuffer {
 	int intData;
 } msgbuffer;
 
-
+//signal handler:
 void signal_handler(int signum){
 printf("60 Second time limit Reached! Terminating Worker Program\n");
 exit(0);
@@ -26,7 +26,7 @@ exit(0);
 
 int main(int argc, char** argv){
 	signal(SIGALRM, signal_handler);
-	alarm(3);
+	alarm(7);
 
 	msgbuffer buf;
 	buf.mtype = 1;
@@ -39,12 +39,13 @@ int main(int argc, char** argv){
 	}
 	// create message queue
 	if ((msqid = msgget(key, PERMS)) == -1) {
-		perror("msgget error in child"); // current error is before here
+		perror("msgget error in child");
 		exit(1);
 	}
 	printf("Child has access to the message que!\n");
 
 	if(argc>2){
+	//attach to shared memory:
 		int shmidc = shmget(SHMKEY, BUFF_SZ, 0777);
 		if (shmidc == -1){
 			perror("Child process shared memory error!");
@@ -61,25 +62,38 @@ int main(int argc, char** argv){
 		printf("WORKER PID: %d PPID %d SysClockS: %d SysclockNano %d TermTimeS: %d TermTimeNano: %d --Just Starting\n",getpid(),getppid(),cint[0], cint[1], timeoutSec, timeoutNano);
 		//loop that checks the clock:
 		while(timeUp != 1){
-			
-			// message queue read test:
+			// message queue read:
 			if (msgrcv(msqid, &buf, sizeof(msgbuffer), getpid(), 0) == -1) {
 				perror("failed to recieve message form parent");
 				exit(1);
 			}
-			//printing the recieved message test:
-			printf("Child %d recieved message: %d\n", getpid(), buf.intData);
-
-
+			//time check:
 			if ( secActive < (cint[0]-startSec) ){
 				secActive++;
 				printf("WORKER PID: %d PPID %d SysClockS: %d SysclockNano %d TermTimeS: %d TermTimeNano: %d -- %d seconds have passed since starting\n",getpid(),getppid(),cint[0], cint[1], timeoutSec, timeoutNano, secActive);
 			}
 			if(timeoutSec == cint[0]) {
+				//termination condition:
 				if (timeoutNano < cint[1] || timeoutSec < cint[0]) {
 					timeUp = 1;
+				//termination message back to parent:
+					buf.mtype = getppid();
+					buf.intData = 0;
+//					strcpy(buf.strData,"Termination  message back to Parent from Child\n");//rm later
+					if (msgsnd(msqid, &buf, sizeof(msgbuffer)-sizeof(long),0) == -1) {
+						perror("msgsnd to parent failed\n");
+						exit(1);
+					}
 					printf("WORKER PID: %d PPID %d SysClockS: %d SysclockNano %d TermTimeS: %d TermTimeNano: %d --Terminating\n",getpid(),getppid(),cint[0], cint[1], timeoutSec, timeoutNano);
 				}
+			}
+			//send nontermination message to parent here:
+			buf.mtype = getppid();
+			buf.intData = 1;
+//			strcpy(buf.strData,"Nontermination message back to Parent from Child\n");//rm later
+			if (msgsnd(msqid, &buf, sizeof(msgbuffer)-sizeof(long),0) == -1) {
+				perror("msgsnd to parent failed\n");
+				exit(1);
 			}
 		}
 	} else {
