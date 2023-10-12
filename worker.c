@@ -62,6 +62,7 @@ int main(int argc, char** argv){
 		printf("WORKER PID: %d PPID %d SysClockS: %d SysclockNano %d TermTimeS: %d TermTimeNano: %d --Just Starting\n",getpid(),getppid(),cint[0], cint[1], timeoutSec, timeoutNano);
 		//loop that checks the clock:
 		while(timeUp != 1){
+//printf("\nclockloop\n\n");rm later
 			// message queue read:
 			if (msgrcv(msqid, &buf, sizeof(msgbuffer), getpid(), 0) == -1) {
 				perror("failed to recieve message form parent");
@@ -79,7 +80,7 @@ int main(int argc, char** argv){
 				//termination message back to parent:
 					buf.mtype = getppid();
 					buf.intData = 0;
-//					strcpy(buf.strData,"Termination  message back to Parent from Child\n");//rm later
+					strcpy(buf.strData,"Termination  message back to Parent from Child\n");//rm later
 					if (msgsnd(msqid, &buf, sizeof(msgbuffer)-sizeof(long),0) == -1) {
 						perror("msgsnd to parent failed\n");
 						exit(1);
@@ -90,7 +91,7 @@ int main(int argc, char** argv){
 			//send nontermination message to parent here:
 			buf.mtype = getppid();
 			buf.intData = 1;
-//			strcpy(buf.strData,"Nontermination message back to Parent from Child\n");//rm later
+			strcpy(buf.strData,"Nontermination message back to Parent from Child\n");//rm later
 			if (msgsnd(msqid, &buf, sizeof(msgbuffer)-sizeof(long),0) == -1) {
 				perror("msgsnd to parent failed\n");
 				exit(1);
