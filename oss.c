@@ -133,10 +133,21 @@ int main(int argc, char** argv){
 	//oss while loop:
 //while workers still active:
 	while (i<numWorkers){
+// in this loop:
+//if shoud create a worker, create a worker:  if not @ worker limit also if not at simultaneous limit, create worker and update pcb
+
+//increment and update clock
+
+//if half a second has passed, print the pcb
+
+//send and recieve messages to/from workers: loop through pcb one at a time. cycle method to next active worker, then send message (complex logic)
+
+//if worker terminates, update pcb
 
 
 
-//if can create worker, create worker:
+//first up:
+//if can create worker, create worker: if not @ worker limit also if not @ simultaneous limit, create worker and update pcb
 		childPid = fork();
 		if (childPid == -1){
 			printf("Fork Process Failed!\n");
@@ -158,10 +169,28 @@ int main(int argc, char** argv){
 //			processTable[i].startSeconds = sysClockSec;
 //			processTable[i].startNano = sysClockNano;
 		//parent side of fork if
+//end of launch if, maybe. if child is launched, pcb will change. so maybe check to see if pcb has changed from previous, but might not need to
 		if(childPid != 0) {
 			int statusPid;
+
+//increment and update clock
+			incrementClock();
+			int nanoFlag = 0;//? should this be set now?
+			//update clock into shared memory
+				shmTime[0] = sysClockSec;//was ppint
+				shmTime[1] = sysClockNano;//was ppint
+					//print and set nano flag
+//				if (ppint[1] > 500000000 && nanoFlag == 0){
+//					nanoFlag = 1;
+
+
+//if half a second has passed, print the pcb
+
+
+//send and recieve messages to/from workers: loop through pcb one at a time. cycle method to next active worker, then send message (complex logic)
+
 		//now lets try adding a message for the que here to start
-	printf("parent while before message send:\n");		
+		printf("parent while before message send:\n");		
 			buf1.mtype = childPid;
 			buf1.intData = childPid;
 			strcpy(buf1.strData, "Message to Child form Parent");
@@ -179,30 +208,23 @@ int main(int argc, char** argv){
 				exit(1);
 			}
 			printf("OSS: Parent %d recieved message: %d\n", getpid(), rcvbuf.intData);
-	
-			int nanoFlag = 0;
-					incrementClock();
+
 	//old non blocking wait		statusPid = waitpid(-1, &status, WNOHANG);
 	//				if (statusPid != 0 ){
 //blocking wait currently implemented!
 					wait(&statusPid);// so once a child is launched, I get stuck here intil it self destructs, then I pass this code wall.
 	//needs to be a non blocking wait to be able to keep incremeting the clock as well as continue to fork children in a timley manner
+
 					printf("OSS: A Child Process completed successfully!\n");
 				//	fprintf(outputFile,"Shared memory clock contains the following: Seconds: %d and Nanoseconds: %d\n",shmTime[0],shmTime[1]);
-					printf("OSS: Shared memory clock contains the following: Seconds: %d and Nanoseconds: %d\n",shmTime[0],shmTime[1]);
-				// update clock values into shared memory:
-				shmTime[0] = sysClockSec;//was ppint
-				shmTime[1] = sysClockNano;//was ppint
-//				if (ppint[1] > 500000000 && nanoFlag == 0){
-					//print and set nano flag
-//					nanoFlag = 1;
+				//not needed:	printf("OSS: Shared memory clock contains the following: Seconds: %d and Nanoseconds: %d\n",shmTime[0],shmTime[1]);
 		i++;
 		//printf("end of parent while loop after iterating i:\n");
 	}
 
 
-
 		//close shared memory and output file:
+//maybe set  if loop condition wil be met, run this code
 		shmdt(shmTime);//was ppint
 		shmctl(shmid, IPC_RMID, NULL);
 		printf("OSS: shared memory shutdown successful\n");
