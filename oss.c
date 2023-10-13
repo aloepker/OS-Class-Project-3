@@ -28,6 +28,23 @@ int randNano(){
 	srand(time(NULL));
 	return 1+rand()%1000000000;
 }
+struct PCB {
+	int occupied;
+	pid_t pid;
+	int startSeconds;
+	int startNano;
+};
+struct PCB processTable[20];
+
+void printPCB(int smS, int smN){
+	printf("OSS PID: %d SysClockS: %d SysClockNano: %d\n", getpid(), smS, smN);
+	printf("Process Table:\n");
+	printf("Entry Occupied PID   StartS StartN\n");
+	int m;
+	for (m=0;m<20;m++){
+		printf("  %d     %d      %d     %d      %d\n", m, processTable[m].occupied, processTable[m].pid, processTable[m].startSeconds, processTable[m].startNano);
+	}
+}
 void help(){
 	printf("The options for the program are:\n");
 	printf("-n <number>   this sets the number of processes to launch\n");
@@ -38,13 +55,7 @@ void help(){
 }
 #define SHMKEY 859048
 #define BUFF_SZ sizeof (int)
-struct PCB {
-	int occupied;
-	pid_t pid;
-	int startSeconds;
-	int startNano;
-};
-struct PCB processTable[20];
+
 #define PERMS 0777
 typedef struct msgbuffer {
 	long mtype;
@@ -185,7 +196,8 @@ int main(int argc, char** argv){
 
 
 //if half a second has passed, print the pcb
-
+					printf("pcb goes here: OSS: Shared memory clock contains the following: Seconds: %d and Nanoseconds: %d\n",shmTime[0],shmTime[1]);
+				printPCB(shmTime[0], shmTime[1]);
 
 //send and recieve messages to/from workers: loop through pcb one at a time. cycle method to next active worker, then send message (complex logic)
 
@@ -215,9 +227,8 @@ int main(int argc, char** argv){
 					wait(&statusPid);// so once a child is launched, I get stuck here intil it self destructs, then I pass this code wall.
 	//needs to be a non blocking wait to be able to keep incremeting the clock as well as continue to fork children in a timley manner
 
-					printf("OSS: A Child Process completed successfully!\n");
+					printf("OSS: A Child Process completed successfully!\n");// rm later, this is for my debugging
 				//	fprintf(outputFile,"Shared memory clock contains the following: Seconds: %d and Nanoseconds: %d\n",shmTime[0],shmTime[1]);
-				//not needed:	printf("OSS: Shared memory clock contains the following: Seconds: %d and Nanoseconds: %d\n",shmTime[0],shmTime[1]);
 		i++;
 		//printf("end of parent while loop after iterating i:\n");
 	}

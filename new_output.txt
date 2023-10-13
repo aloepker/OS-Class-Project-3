@@ -1,1 +1,0 @@
-Shared memory clock contains the following: Seconds: 123 and Nanoseconds: 123
