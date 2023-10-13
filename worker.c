@@ -26,7 +26,7 @@ exit(0);
 
 int main(int argc, char** argv){
 	signal(SIGALRM, signal_handler);
-	alarm(4);
+	alarm(20);
 
 	msgbuffer buf;
 	buf.mtype = 1;
@@ -73,7 +73,7 @@ int main(int argc, char** argv){
 				secActive++;
 				printf("WORKER PID: %d PPID %d SysClockS: %d SysclockNano %d TermTimeS: %d TermTimeNano: %d -- %d seconds have passed since starting\n",getpid(),getppid(),cint[0], cint[1], timeoutSec, timeoutNano, secActive);
 			}
-			if(timeoutSec == cint[0]) {
+			if(timeoutSec == cint[0] || timeoutSec < cint[0]) {
 				//termination condition:
 				if (timeoutNano < cint[1] || timeoutSec < cint[0]) {
 					timeUp = 1;
@@ -87,14 +87,15 @@ int main(int argc, char** argv){
 					}
 					printf("WORKER PID: %d PPID %d SysClockS: %d SysclockNano %d TermTimeS: %d TermTimeNano: %d --Terminating\n",getpid(),getppid(),cint[0], cint[1], timeoutSec, timeoutNano);
 				}
-			}
-			//send nontermination message to parent here:
-			buf.mtype = getppid();
-			buf.intData = 1;
-			strcpy(buf.strData,"Nontermination message back to Parent from Child\n");//rm later
-			if (msgsnd(msqid, &buf, sizeof(msgbuffer)-sizeof(long),0) == -1) {
-				perror("msgsnd to parent failed\n");
-				exit(1);
+			}else{
+				//send nontermination message to parent here:
+				buf.mtype = getppid();
+				buf.intData = 1;
+				strcpy(buf.strData,"Nontermination message back to Parent from Child\n");//rm later
+				if (msgsnd(msqid, &buf, sizeof(msgbuffer)-sizeof(long),0) == -1) {
+					perror("msgsnd to parent failed\n");
+					exit(1);
+				}
 			}
 		}
 	} else {

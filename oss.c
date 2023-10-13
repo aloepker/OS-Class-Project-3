@@ -115,7 +115,7 @@ int main(int argc, char** argv){
 	int * shmTime = ( int * )( paddr );
 	shmTime[0]=123;
 	shmTime[1]=123;
- //	shmdt(shmTime);
+	 //shmdt(shmTime);
 	//message que initial implementation:
 	msgbuffer buf0, buf1;
 	int msqid;
@@ -139,18 +139,12 @@ int main(int argc, char** argv){
 	pid_t childPid;
 	int statPid;
 	msgbuffer rcvbuf;
-	int worker = 1;
-	
-	//oss while loop:
-//while workers still active:
+	int worker = 1;//?
+	int createdWorkers = 0;
+	int activeWorkers = 0;
+	int nanoFlag = 0;
+	//while workers still active:
 	while (i<numWorkers){
-// in this loop:
-//if shoud create a worker, create a worker:  if not @ worker limit also if not at simultaneous limit, create worker and update pcb
-
-//increment and update clock
-
-//if half a second has passed, print the pcb
-
 //send and recieve messages to/from workers: loop through pcb one at a time. cycle method to next active worker, then send message (complex logic)
 
 //if worker terminates, update pcb
@@ -159,49 +153,54 @@ int main(int argc, char** argv){
 
 //first up:
 //if can create worker, create worker: if not @ worker limit also if not @ simultaneous limit, create worker and update pcb
-		childPid = fork();
-		if (childPid == -1){
-			printf("Fork Process Failed!\n");
-			return EXIT_FAILURE;
+		if (createdWorkers < numWorkers){
+			if (activeWorkers < workerLimit ){
+				childPid = fork();
+				if (childPid == -1){
+					printf("Fork Process Failed!\n");
+					return EXIT_FAILURE;
+				}
+				//child side of the fork if
+				if (childPid == 0) {
+					int timeSec = randSeconds(timeLimit);
+					int timeNano = randNano();
+					char secArg[10];
+					char nanoArg[10];
+					sprintf(secArg, "%d", timeSec);
+					sprintf(nanoArg, "%d", timeNano);
+					char * args[] = {"./worker", secArg, nanoArg, NULL};
+					execvp("./worker", args);
+				}
+				createdWorkers++;
+				activeWorkers++;
+
+//logic for updating pcb entry after a fork: how do i set and cycle to the corrct worker??
+	//			processTable[i].occupied = 1;
+	//			processTable[i].pid = getpid();
+	//			processTable[i].startSeconds = sysClockSec;
+	//			processTable[i].startNano = sysClockNano;
+			//parent side of fork if
+	//end of launch if, maybe. if child is launched, pcb will change. so maybe check to see if pcb has changed from previous, but might not need to
+			}
 		}
-		//child side of the fork if
-		if (childPid == 0) {
-			int timeSec = randSeconds(timeLimit);
-			int timeNano = randNano();
-			char secArg[10];
-			char nanoArg[10];
-			sprintf(secArg, "%d", timeSec);
-			sprintf(nanoArg, "%d", timeNano);
-			char * args[] = {"./worker", secArg, nanoArg, NULL};
-			execvp("./worker", args);
-		}
-//			processTable[i].occupied = 1;
-//			processTable[i].pid = getpid();
-//			processTable[i].startSeconds = sysClockSec;
-//			processTable[i].startNano = sysClockNano;
-		//parent side of fork if
-//end of launch if, maybe. if child is launched, pcb will change. so maybe check to see if pcb has changed from previous, but might not need to
-		if(childPid != 0) {
+
+
+			//might be irelevant..		if(childPid != 0) {
 			int statusPid;
 
-//increment and update clock
+			//increment the clock
 			incrementClock();
-int nanoFlag = 0;//? should this be set now? I think this needs to be before the  bit while loop!!!
 			//update clock into shared memory
-				shmTime[0] = sysClockSec;//was ppint
-				shmTime[1] = sysClockNano;//was ppint
-
-
-//if half a second has passed, print the pcb
-				//time check
-				if(shmTime[1] > 500000000 && nanoFlag == 0){
-					nanoFlag = 1;
-					printPCB(shmTime[0], shmTime[1]);
-				}else if(shmTime[0] > prevSec){
-					nanoFlag = 0;
-					printPCB(shmTime[0], shmTime[1]);
-				}
-
+			shmTime[0] = sysClockSec;
+			shmTime[1] = sysClockNano;
+			//half-"second" check
+			if(shmTime[1] > 500000000 && nanoFlag == 0){
+				nanoFlag = 1;
+//for now				printPCB(shmTime[0], shmTime[1]);
+			}else if(shmTime[0] > prevSec){
+				nanoFlag = 0;
+//for now				printPCB(shmTime[0], shmTime[1]);
+			}
 //send and recieve messages to/from workers: loop through pcb one at a time. cycle method to next active worker, then send message (complex logic)
 
 		//now lets try adding a message for the que here to start
@@ -214,8 +213,7 @@ int nanoFlag = 0;//? should this be set now? I think this needs to be before the
 				perror("msgsnd to child failed");
 				exit(1);
 			}
-	//		int messageArrived = 0;
-	//		while (messageArrived == 0){
+
 	printf("parent while before message rcv:\n");		
 
 			if (msgrcv(msqid, &rcvbuf, sizeof(msgbuffer), getpid(), 0) == -1){
@@ -224,29 +222,28 @@ int nanoFlag = 0;//? should this be set now? I think this needs to be before the
 			}
 			printf("OSS: Parent %d recieved message: %d\n", getpid(), rcvbuf.intData);
 
-	//old non blocking wait		statusPid = waitpid(-1, &status, WNOHANG);
-	//				if (statusPid != 0 ){
-//blocking wait currently implemented!
-					wait(&statusPid);// so once a child is launched, I get stuck here intil it self destructs, then I pass this code wall.
-	//needs to be a non blocking wait to be able to keep incremeting the clock as well as continue to fork children in a timley manner
-
-					printf("OSS: A Child Process completed successfully!\n");// rm later, this is for my debugging
-				//	fprintf(outputFile,"Shared memory clock contains the following: Seconds: %d and Nanoseconds: %d\n",shmTime[0],shmTime[1]);
-		i++;
+	//blocking wait currently implemented!
+//					wait(&statusPid);// so once a child is launched, I get stuck here intil it self destructs, then I pass this code wall.
+//if worker terminates, update pcb
+			statusPid = waitpid(-1, &status, WNOHANG);
+			if (statusPid != 0 ){ // 0 indicates that the child is still busy, sos not zero means the child has ended
+				printf("OSS: A Child Process completed successfully!\n");// rm later, this is for my debugging
+				activeWorkers--;
+				i++;
+			}
 		//printf("end of parent while loop after iterating i:\n");
 	}
 
 
 		//close shared memory and output file:
-//maybe set  if loop condition wil be met, run this code
 		shmdt(shmTime);//was ppint
 		shmctl(shmid, IPC_RMID, NULL);
 		printf("OSS: shared memory shutdown successful\n");
 		fclose(outputFile);
-		//also clear message ques:
+		//clear message ques:
 		if (msgctl(msqid, IPC_RMID, NULL) == -1){
-			perror("msgctl to get rid of que in parent ");
+			perror("msgctl failed to get rid of que in parent ");
 			exit(1);
 		}
-	}//end of parent side of fork if
+//	}//end of parent side of fork if, which might not be needed it seems...
 }
