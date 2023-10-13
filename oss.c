@@ -186,18 +186,21 @@ int main(int argc, char** argv){
 
 //increment and update clock
 			incrementClock();
-			int nanoFlag = 0;//? should this be set now?
+int nanoFlag = 0;//? should this be set now? I think this needs to be before the  bit while loop!!!
 			//update clock into shared memory
 				shmTime[0] = sysClockSec;//was ppint
 				shmTime[1] = sysClockNano;//was ppint
-					//print and set nano flag
-//				if (ppint[1] > 500000000 && nanoFlag == 0){
-//					nanoFlag = 1;
 
 
 //if half a second has passed, print the pcb
-					printf("pcb goes here: OSS: Shared memory clock contains the following: Seconds: %d and Nanoseconds: %d\n",shmTime[0],shmTime[1]);
-				printPCB(shmTime[0], shmTime[1]);
+				//time check
+				if(shmTime[1] > 500000000 && nanoFlag == 0){
+					nanoFlag = 1;
+					printPCB(shmTime[0], shmTime[1]);
+				}else if(shmTime[0] > prevSec){
+					nanoFlag = 0;
+					printPCB(shmTime[0], shmTime[1]);
+				}
 
 //send and recieve messages to/from workers: loop through pcb one at a time. cycle method to next active worker, then send message (complex logic)
 
