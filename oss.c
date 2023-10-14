@@ -39,7 +39,7 @@ struct PCB processTable[20];
 void printPCB(int smS, int smN){
 	printf("OSS PID: %d SysClockS: %d SysClockNano: %d\n", getpid(), smS, smN);
 	printf("Process Table:\n");
-	printf("Entry Occupied PID   StartS StartN\n");
+	printf("Entry Occupied PID    StartS StartN\n");
 	int m;
 	for (m=0;m<20;m++){
 		printf("  %d     %d      %d     %d      %d\n", m, processTable[m].occupied, processTable[m].pid, processTable[m].startSeconds, processTable[m].startNano);
@@ -64,7 +64,7 @@ typedef struct msgbuffer {
 } msgbuffer;
 
 int main(int argc, char** argv){
-	int option, status;
+	int option;
 	int numWorkers = 0;
 	int workerLimit = 0;
 	int timeLimit = 0;
@@ -113,11 +113,10 @@ int main(int argc, char** argv){
 	}
 	char * paddr = ( char * )( shmat ( shmid, 0, 0 ) );
 	int * shmTime = ( int * )( paddr );
-	shmTime[0]=123;
-	shmTime[1]=123;
-	 //shmdt(shmTime);
+	shmTime[0]=0;
+	shmTime[1]=0;
 	//message que initial implementation:
-	msgbuffer buf0, buf1;
+	msgbuffer buf1;
 	int msqid;
 	key_t key;
 	system("touch msgq.txt");
@@ -134,25 +133,29 @@ int main(int argc, char** argv){
 	//print user input verification:
 	printf("OSS: Number of workers Selected: %d\nNumber of Workers at a time: %d\nNumber of loops for each Worker: %d\nOutput file: %s\n", numWorkers, workerLimit, timeLimit,logFile);
 
-	int i=0,j=0;
+	int i=0,j=0,n=0;
 	//fork calls:
 	pid_t childPid;
-	int statPid;
 	msgbuffer rcvbuf;
-	int worker = 1;//?
 	int createdWorkers = 0;
 	int activeWorkers = 0;
+	int isWorkerActive = 0;
 	int nanoFlag = 0;
 	//while workers still active:
 	while (i<numWorkers){
-//send and recieve messages to/from workers: loop through pcb one at a time. cycle method to next active worker, then send message (complex logic)
-
-//if worker terminates, update pcb
-
-
-
-//first up:
-//if can create worker, create worker: if not @ worker limit also if not @ simultaneous limit, create worker and update pcb
+		//increment the clock
+		incrementClock();
+		//update clock into shared memory
+		shmTime[0] = sysClockSec;
+		shmTime[1] = sysClockNano;
+		if(shmTime[1] > 500000000 && nanoFlag == 0){
+			nanoFlag = 1;
+		printPCB(shmTime[0], shmTime[1]);
+		}else if(shmTime[0] > prevSec){
+			nanoFlag = 0;
+			printPCB(shmTime[0], shmTime[1]);
+		}
+		//if can create worker, create worker and update PCB:
 		if (createdWorkers < numWorkers){
 			if (activeWorkers < workerLimit ){
 				childPid = fork();
@@ -171,71 +174,57 @@ int main(int argc, char** argv){
 					char * args[] = {"./worker", secArg, nanoArg, NULL};
 					execvp("./worker", args);
 				}
+				//parent side of fork if
 				createdWorkers++;
 				activeWorkers++;
-
-//logic for updating pcb entry after a fork: how do i set and cycle to the corrct worker??
-	//			processTable[i].occupied = 1;
-	//			processTable[i].pid = getpid();
-	//			processTable[i].startSeconds = sysClockSec;
-	//			processTable[i].startNano = sysClockNano;
-			//parent side of fork if
-	//end of launch if, maybe. if child is launched, pcb will change. so maybe check to see if pcb has changed from previous, but might not need to
+				//update pcb entry after a fork:
+				processTable[n].occupied = 1;
+				processTable[n].pid = childPid;
+				processTable[n].startSeconds = sysClockSec;
+				processTable[n].startNano = sysClockNano;
+				n++;
+			}
+		}
+		//message workers in sequence:
+		//find next occupied pcb entry:
+		while(isWorkerActive != 1){
+			if(processTable[j].occupied == 1){
+				isWorkerActive = 1;
+			}else{
+				j++;
+				if (j==20){
+					j=0;
+				}
 			}
 		}
 
-
-			//might be irelevant..		if(childPid != 0) {
-			int statusPid;
-
-			//increment the clock
-			incrementClock();
-			//update clock into shared memory
-			shmTime[0] = sysClockSec;
-			shmTime[1] = sysClockNano;
-			//half-"second" check
-			if(shmTime[1] > 500000000 && nanoFlag == 0){
-				nanoFlag = 1;
-//for now				printPCB(shmTime[0], shmTime[1]);
-			}else if(shmTime[0] > prevSec){
-				nanoFlag = 0;
-//for now				printPCB(shmTime[0], shmTime[1]);
-			}
-//send and recieve messages to/from workers: loop through pcb one at a time. cycle method to next active worker, then send message (complex logic)
-
-		//now lets try adding a message for the que here to start
-		printf("parent sending its message to the worker:\n");		
-			buf1.mtype = childPid;
-			buf1.intData = childPid;
+		//send a message to the selected pcb entry:
+			buf1.mtype = processTable[j].pid;
+			buf1.intData = processTable[j].pid;
 			strcpy(buf1.strData, "Message to Child form Parent");
 			if ((msgsnd(msqid, &buf1, sizeof(msgbuffer)-sizeof(long), 0)) == -1) {
-		////// ERROR message is pointing here!!!!        !!!!!!!!!!!!!!!!!!!!!!!!!                     
 				perror("msgsnd to child failed");
 				exit(1);
 			}
-
-	printf("parent checking message queue:\n");		
-
 			if (msgrcv(msqid, &rcvbuf, sizeof(msgbuffer), getpid(), 0) == -1){
 				perror("failed to recieve message in parent\n");
 				exit(1);
 			}
 			printf("OSS: Parent %d recieved message: %d\n", getpid(), rcvbuf.intData);
-
-	//blocking wait currently implemented!
-//					wait(&statusPid);// so once a child is launched, I get stuck here intil it self destructs, then I pass this code wall.
-//if worker terminates, update pcb
-printf("Parent checking to see if worker has terminated");
-//			statusPid = waitpid(-1, &status, WNOHANG);
-//			if (statusPid != 0 ){ // 0 indicates that the child is still busy, sos not zero means the child has ended
+//if worker terminates, update pcb:
 			if (rcvbuf.intData == 0){
-				printf("OSS: A Child Process completed successfully!\n");// rm later, this is for my debugging
+printf("OSS: A Child Process completed successfully!\n");// rm later, this is for my debugging
 				activeWorkers--;
 				i++;
+				processTable[j].occupied = 0;
 			}
-		printf("end of parent while loop after iterating i:\n");
+	//limits pcb searching loop
+		isWorkerActive = 0;
+		if (activeWorkers == 0){
+			isWorkerActive = 1;
+		}
+		j++;
 	}
-
 
 		//close shared memory and output file:
 		shmdt(shmTime);//was ppint
@@ -247,5 +236,4 @@ printf("Parent checking to see if worker has terminated");
 			perror("msgctl failed to get rid of que in parent ");
 			exit(1);
 		}
-//	}//end of parent side of fork if, which might not be needed it seems...
 }

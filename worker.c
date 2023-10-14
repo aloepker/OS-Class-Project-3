@@ -63,7 +63,7 @@ int main(int argc, char** argv){
 		//loop that checks the clock:
 		while(timeUp != 1){
 //printf("\nclockloop\n\n");rm later
-printf("worker reads it's message queue:\n");
+//printf("worker reads it's message queue:\n");
 			// message queue read:
 			if (msgrcv(msqid, &buf, sizeof(msgbuffer), getpid(), 0) == -1) {
 				perror("failed to recieve message form parent");
@@ -77,14 +77,14 @@ printf("worker reads it's message queue:\n");
 			}
 
 // it looks like this logic isnt handling the exception: tighten the first if condition, remove the second and it should solve the issue
-printf("1st level worker killtime if\n");
+//printf("1st level worker killtime if\n");
 			if((timeoutSec == cint[0] && timeoutNano < cint[0]) || (timeoutSec < cint[0])) {
 				//termination condition:
-printf("2nd level worker killtime if\n");
+//printf("2nd level worker killtime if\n");
 
 //				if (timeoutNano < cint[1] || timeoutSec < cint[0]) {
 					timeUp = 1;
-printf("worker sends its dethnote message:\n");
+//printf("worker sends its dethnote message:\n");
 				//termination message back to parent:
 					buf.mtype = getppid();
 					buf.intData = 0;
@@ -98,7 +98,7 @@ printf("worker sends its dethnote message:\n");
 //looks like this else doesnt ever happen..
 			}else{
 //should occor if timeout if is not satisfied
-printf("\n\nbefore worker sends its continuing message to the parent:\n\n");
+//printf("\n\nbefore worker sends its continuing message to the parent:\n\n");
 				//send nontermination message to parent here:
 				buf.mtype = getppid();
 				buf.intData = 1;
@@ -108,7 +108,7 @@ printf("\n\nbefore worker sends its continuing message to the parent:\n\n");
 					exit(1);
 				}
 			}
-printf("worker loop ends or resets");
+//printf("worker loop ends or resets");
 		}
 	} else {
 		printf("incorrect number of arguments\n");
