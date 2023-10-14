@@ -63,6 +63,7 @@ int main(int argc, char** argv){
 		//loop that checks the clock:
 		while(timeUp != 1){
 //printf("\nclockloop\n\n");rm later
+printf("worker reads it's message queue:\n");
 			// message queue read:
 			if (msgrcv(msqid, &buf, sizeof(msgbuffer), getpid(), 0) == -1) {
 				perror("failed to recieve message form parent");
@@ -71,12 +72,19 @@ int main(int argc, char** argv){
 			//time check:
 			if ( secActive < (cint[0]-startSec) ){
 				secActive++;
+// "second" output
 				printf("WORKER PID: %d PPID %d SysClockS: %d SysclockNano %d TermTimeS: %d TermTimeNano: %d -- %d seconds have passed since starting\n",getpid(),getppid(),cint[0], cint[1], timeoutSec, timeoutNano, secActive);
 			}
-			if(timeoutSec == cint[0] || timeoutSec < cint[0]) {
+
+// it looks like this logic isnt handling the exception: tighten the first if condition, remove the second and it should solve the issue
+printf("1st level worker killtime if\n");
+			if((timeoutSec == cint[0] && timeoutNano < cint[0]) || (timeoutSec < cint[0])) {
 				//termination condition:
-				if (timeoutNano < cint[1] || timeoutSec < cint[0]) {
+printf("2nd level worker killtime if\n");
+
+//				if (timeoutNano < cint[1] || timeoutSec < cint[0]) {
 					timeUp = 1;
+printf("worker sends its dethnote message:\n");
 				//termination message back to parent:
 					buf.mtype = getppid();
 					buf.intData = 0;
@@ -86,8 +94,11 @@ int main(int argc, char** argv){
 						exit(1);
 					}
 					printf("WORKER PID: %d PPID %d SysClockS: %d SysclockNano %d TermTimeS: %d TermTimeNano: %d --Terminating\n",getpid(),getppid(),cint[0], cint[1], timeoutSec, timeoutNano);
-				}
+//				}
+//looks like this else doesnt ever happen..
 			}else{
+//should occor if timeout if is not satisfied
+printf("\n\nbefore worker sends its continuing message to the parent:\n\n");
 				//send nontermination message to parent here:
 				buf.mtype = getppid();
 				buf.intData = 1;
@@ -97,6 +108,7 @@ int main(int argc, char** argv){
 					exit(1);
 				}
 			}
+printf("worker loop ends or resets");
 		}
 	} else {
 		printf("incorrect number of arguments\n");

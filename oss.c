@@ -204,7 +204,7 @@ int main(int argc, char** argv){
 //send and recieve messages to/from workers: loop through pcb one at a time. cycle method to next active worker, then send message (complex logic)
 
 		//now lets try adding a message for the que here to start
-		printf("parent while before message send:\n");		
+		printf("parent sending its message to the worker:\n");		
 			buf1.mtype = childPid;
 			buf1.intData = childPid;
 			strcpy(buf1.strData, "Message to Child form Parent");
@@ -214,7 +214,7 @@ int main(int argc, char** argv){
 				exit(1);
 			}
 
-	printf("parent while before message rcv:\n");		
+	printf("parent checking message queue:\n");		
 
 			if (msgrcv(msqid, &rcvbuf, sizeof(msgbuffer), getpid(), 0) == -1){
 				perror("failed to recieve message in parent\n");
@@ -225,13 +225,15 @@ int main(int argc, char** argv){
 	//blocking wait currently implemented!
 //					wait(&statusPid);// so once a child is launched, I get stuck here intil it self destructs, then I pass this code wall.
 //if worker terminates, update pcb
-			statusPid = waitpid(-1, &status, WNOHANG);
-			if (statusPid != 0 ){ // 0 indicates that the child is still busy, sos not zero means the child has ended
+printf("Parent checking to see if worker has terminated");
+//			statusPid = waitpid(-1, &status, WNOHANG);
+//			if (statusPid != 0 ){ // 0 indicates that the child is still busy, sos not zero means the child has ended
+			if (rcvbuf.intData == 0){
 				printf("OSS: A Child Process completed successfully!\n");// rm later, this is for my debugging
 				activeWorkers--;
 				i++;
 			}
-		//printf("end of parent while loop after iterating i:\n");
+		printf("end of parent while loop after iterating i:\n");
 	}
 
 
