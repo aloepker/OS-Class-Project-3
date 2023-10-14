@@ -1,3 +1,5 @@
+//Written by Adam Spencer Loepker
+//Finished on October 14th, 2023
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
@@ -25,9 +27,9 @@ exit(0);
 }
 
 int main(int argc, char** argv){
+	//60 second countdown to termination:
 	signal(SIGALRM, signal_handler);
-	alarm(20);
-
+	alarm(60);
 	msgbuffer buf;
 	buf.mtype = 1;
 	int msqid = 0;
@@ -62,8 +64,6 @@ int main(int argc, char** argv){
 		printf("WORKER PID: %d PPID %d SysClockS: %d SysclockNano %d TermTimeS: %d TermTimeNano: %d --Just Starting\n",getpid(),getppid(),cint[0], cint[1], timeoutSec, timeoutNano);
 		//loop that checks the clock:
 		while(timeUp != 1){
-//printf("\nclockloop\n\n");rm later
-//printf("worker reads it's message queue:\n");
 			// message queue read:
 			if (msgrcv(msqid, &buf, sizeof(msgbuffer), getpid(), 0) == -1) {
 				perror("failed to recieve message form parent");
@@ -72,43 +72,32 @@ int main(int argc, char** argv){
 			//time check:
 			if ( secActive < (cint[0]-startSec) ){
 				secActive++;
-// "second" output
+				// "second" output
 				printf("WORKER PID: %d PPID %d SysClockS: %d SysclockNano %d TermTimeS: %d TermTimeNano: %d -- %d seconds have passed since starting\n",getpid(),getppid(),cint[0], cint[1], timeoutSec, timeoutNano, secActive);
 			}
 
-// it looks like this logic isnt handling the exception: tighten the first if condition, remove the second and it should solve the issue
-//printf("1st level worker killtime if\n");
+			//termination condition:
 			if((timeoutSec == cint[0] && timeoutNano < cint[0]) || (timeoutSec < cint[0])) {
-				//termination condition:
-//printf("2nd level worker killtime if\n");
-
-//				if (timeoutNano < cint[1] || timeoutSec < cint[0]) {
-					timeUp = 1;
-//printf("worker sends its dethnote message:\n");
+				timeUp = 1;
 				//termination message back to parent:
-					buf.mtype = getppid();
-					buf.intData = 0;
-					strcpy(buf.strData,"Termination  message back to Parent from Child\n");//rm later
-					if (msgsnd(msqid, &buf, sizeof(msgbuffer)-sizeof(long),0) == -1) {
-						perror("msgsnd to parent failed\n");
-						exit(1);
-					}
-					printf("WORKER PID: %d PPID %d SysClockS: %d SysclockNano %d TermTimeS: %d TermTimeNano: %d --Terminating\n",getpid(),getppid(),cint[0], cint[1], timeoutSec, timeoutNano);
-//				}
-//looks like this else doesnt ever happen..
+				buf.mtype = getppid();
+				buf.intData = 0;
+				strcpy(buf.strData,"Termination  message back to Parent from Child\n");
+				if (msgsnd(msqid, &buf, sizeof(msgbuffer)-sizeof(long),0) == -1) {
+					perror("msgsnd to parent failed\n");
+					exit(1);
+				}
+				printf("WORKER PID: %d PPID %d SysClockS: %d SysclockNano %d TermTimeS: %d TermTimeNano: %d --Terminating\n",getpid(),getppid(),cint[0], cint[1], timeoutSec, timeoutNano);
 			}else{
-//should occor if timeout if is not satisfied
-//printf("\n\nbefore worker sends its continuing message to the parent:\n\n");
 				//send nontermination message to parent here:
 				buf.mtype = getppid();
 				buf.intData = 1;
-				strcpy(buf.strData,"Nontermination message back to Parent from Child\n");//rm later
+				strcpy(buf.strData,"Nontermination message back to Parent from Child\n");
 				if (msgsnd(msqid, &buf, sizeof(msgbuffer)-sizeof(long),0) == -1) {
 					perror("msgsnd to parent failed\n");
 					exit(1);
 				}
 			}
-//printf("worker loop ends or resets");
 		}
 	} else {
 		printf("incorrect number of arguments\n");
